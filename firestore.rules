@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { allow read, write: if false; }
+
+    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    function isValidWorkspace(data) {
+      return data.keys().hasAll(['name', 'ownerId', 'createdAt'])
+        && data.name is string && data.name.size() <= 100
+        && (data.get('icon', '') is string) && (data.get('icon', '').size() <= 100)
+        && data.ownerId == request.auth.uid
+        && data.createdAt is number;
+    }
+
+    function isValidPage(data) {
+      return data.keys().hasAll(['workspaceId', 'title', 'order', 'timestamp', 'deleted', 'ownerId'])
+        && data.workspaceId is string && data.workspaceId.size() <= 128
+        && (data.get('parentId', '') is string) && (data.get('parentId', '').size() <= 128)
+        && data.title is string && data.title.size() <= 200
+        && (data.get('icon', '') is string) && (data.get('icon', '').size() <= 100)
+        && (data.get('coverImage', '') is string) && (data.get('coverImage', '').size() <= 500)
+        && data.order is string && data.order.size() <= 128
+        && data.timestamp is number
+        && data.deleted is bool
+        && (data.get('published', false) is bool)
+        && data.ownerId == request.auth.uid;
+    }
+
+    function isValidBlock(data) {
+      return data.keys().hasAll(['type', 'order', 'content', 'ownerId'])
+        && data.type is string && data.type.size() <= 50
+        && data.order is string && data.order.size() <= 128
+        && (data.get('parentId', '') is string) && (data.get('parentId', '').size() <= 128)
+        && data.content is string && data.content.size() <= 10000
+        && data.ownerId == request.auth.uid;
+    }
+
+    match /workspaces/{workspaceId} {
+      allow read: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(workspaceId) && isValidWorkspace(incoming()) && incoming().keys().size() <= 6 && incoming().createdAt == request.time.toMillis();
+      allow update: if isSignedIn() && isValidId(workspaceId) && isValidWorkspace(incoming()) && incoming().ownerId == existing().ownerId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'icon']);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      match /pages/{pageId} {
+        allow read: if isSignedIn() && existing().ownerId == request.auth.uid;
+        allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+        allow create: if isSignedIn() && isValidId(pageId) && isValidPage(incoming()) && incoming().keys().size() <= 10 && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid;
+        allow update: if isSignedIn() && isValidId(pageId) && isValidPage(incoming()) && existing().ownerId == request.auth.uid
+          && incoming().workspaceId == existing().workspaceId
+          && incoming().diff(existing()).affectedKeys().hasOnly(['parentId', 'title', 'icon', 'coverImage', 'order', 'timestamp', 'deleted', 'published']);
+        allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+        match /blocks/{blockId} {
+          allow read: if isSignedIn() && existing().ownerId == request.auth.uid;
+          allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+          allow create: if isSignedIn() && isValidId(blockId) && isValidBlock(incoming()) && incoming().keys().size() <= 6 && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid;
+          allow update: if isSignedIn() && isValidId(blockId) && isValidBlock(incoming()) && existing().ownerId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['type', 'order', 'parentId', 'content', 'attrs']);
+          allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+        }
+      }
+    }
+  }
+}

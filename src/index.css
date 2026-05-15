@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-ocean-bg: var(--ocean-bg);
+  --color-ocean-surface: var(--ocean-surface);
+  --color-ocean-panel: var(--ocean-panel);
+  --color-ocean-border: var(--ocean-border);
+  --color-ocean-border-soft: var(--ocean-border-soft);
+  --color-ocean-text: var(--ocean-text);
+  --color-ocean-muted: var(--ocean-muted);
+  --color-ocean-faint: var(--ocean-faint);
+  --color-ocean-blue: var(--ocean-blue);
+  --color-ocean-blue-dim: var(--ocean-blue-dim);
+  --color-ocean-blue-glow: var(--ocean-blue-glow);
+}
+
+@layer base {
+  :root {
+    --ocean-bg: #ffffff;
+    --ocean-surface: #ffffff;
+    --ocean-panel: #f9f9f9;
+    --ocean-border: #eaeaea;
+    --ocean-border-soft: #f4f4f4;
+    --ocean-text: #222222;
+    --ocean-muted: #888888;
+    --ocean-faint: #cccccc;
+    --ocean-blue: #1877f2;
+    --ocean-blue-dim: rgba(24, 119, 242, 0.08);
+    --ocean-blue-glow: rgba(24, 119, 242, 0.15);
+  }
+
+  .dark {
+    --ocean-bg: #141414;
+    --ocean-surface: #1c1c1c;
+    --ocean-panel: #181818;
+    --ocean-border: #2a2a2a;
+    --ocean-border-soft: #222222;
+    --ocean-text: #eeeeee;
+    --ocean-muted: #777777;
+    --ocean-faint: #444444;
+    --ocean-blue: #2d88ff;
+    --ocean-blue-dim: rgba(45, 136, 255, 0.10);
+    --ocean-blue-glow: rgba(45, 136, 255, 0.18);
+  }
+
+  body {
+    @apply bg-ocean-bg text-ocean-text font-sans antialiased selection:bg-ocean-blue-dim;
+    transition: background-color 400ms ease, color 300ms ease;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-ocean-faint/50 rounded-full hover:bg-ocean-muted/50 transition-colors;
+  }
+}

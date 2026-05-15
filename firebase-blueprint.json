@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "workspace": {
+      "title": "Workspace",
+      "description": "User's organizational space",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name", "ownerId", "createdAt"]
+    },
+    "page": {
+      "title": "Page",
+      "description": "A page/document in a workspace",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "parentId": { "type": "string" },
+        "title": { "type": "string" },
+        "icon": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "order": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "deleted": { "type": "boolean" },
+        "published": { "type": "boolean" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["workspaceId", "title", "order", "timestamp", "deleted", "ownerId"]
+    },
+    "block": {
+      "title": "Block",
+      "description": "A content block on a page",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "order": { "type": "string" },
+        "parentId": { "type": "string" },
+        "content": { "type": "string" },
+        "attrs": { "type": "object" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["type", "order", "content", "ownerId"]
+    }
+  },
+  "firestore": {
+    "/workspaces/{workspaceId}": {
+      "schema": { "$ref": "#/entities/workspace" },
+      "description": "Workspaces root collection"
+    },
+    "/workspaces/{workspaceId}/pages/{pageId}": {
+      "schema": { "$ref": "#/entities/page" },
+      "description": "Pages in a workspace"
+    },
+    "/workspaces/{workspaceId}/pages/{pageId}/blocks/{blockId}": {
+      "schema": { "$ref": "#/entities/block" },
+      "description": "Blocks in a page"
+    }
+  }
+}
