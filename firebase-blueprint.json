@@ -8,9 +8,10 @@
         "name": { "type": "string" },
         "icon": { "type": "string" },
         "ownerId": { "type": "string" },
-        "createdAt": { "type": "number" }
+        "createdAt": { "type": "number" },
+        "type": { "type": "string", "enum": ["blog", "work"] }
       },
-      "required": ["name", "ownerId", "createdAt"]
+      "required": ["name", "ownerId", "createdAt", "type"]
     },
     "page": {
       "title": "Page",
@@ -26,6 +27,16 @@
         "timestamp": { "type": "number" },
         "deleted": { "type": "boolean" },
         "published": { "type": "boolean" },
+        "slug": { "type": "string" },
+        "publishedAt": { "type": "number" },
+        "seo": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "ogImage": { "type": "string" }
+          }
+        },
         "ownerId": { "type": "string" }
       },
       "required": ["workspaceId", "title", "order", "timestamp", "deleted", "ownerId"]
@@ -43,6 +54,17 @@
         "ownerId": { "type": "string" }
       },
       "required": ["type", "order", "content", "ownerId"]
+    },
+    "publicPage": {
+      "title": "PublicPage",
+      "description": "Slug -> page resolution for anonymous renderer. Maintained by Cloud Function.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string" },
+        "pageId": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["workspaceId", "pageId", "ownerId"]
     }
   },
   "firestore": {
@@ -57,6 +79,10 @@
     "/workspaces/{workspaceId}/pages/{pageId}/blocks/{blockId}": {
       "schema": { "$ref": "#/entities/block" },
       "description": "Blocks in a page"
+    },
+    "/publicPages/{slug}": {
+      "schema": { "$ref": "#/entities/publicPage" },
+      "description": "Slug mirror for anonymous public page rendering (server-maintained)"
     }
   }
 }

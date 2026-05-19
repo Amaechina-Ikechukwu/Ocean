@@ -10,6 +10,20 @@ import { useLocation } from 'react-router-dom';
 import { auth } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Toaster } from 'sonner';
+import { PublicPage } from './components/public/PublicPage';
+import { Onboarding } from './components/onboarding/Onboarding';
+import { useThemeStore } from './lib/store';
+
+function useApplyTheme() {
+  const theme = useThemeStore(s => s.theme);
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+}
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -47,13 +61,17 @@ function AppLayout() {
   );
 }
 
-export default function App() {
+function AuthedShell() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [onboarded, setOnboarded] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      if (u) {
+        setOnboarded(localStorage.getItem(`ocean.onboarded.${u.uid}`) === '1');
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -67,9 +85,28 @@ export default function App() {
     return <Login />;
   }
 
+  if (!onboarded) {
+    return (
+      <Onboarding
+        onComplete={() => {
+          localStorage.setItem(`ocean.onboarded.${user.uid}`, '1');
+          setOnboarded(true);
+        }}
+      />
+    );
+  }
+
+  return <AppLayout />;
+}
+
+export default function App() {
+  useApplyTheme();
   return (
     <BrowserRouter>
-      <AppLayout />
+      <Routes>
+        <Route path="/p/:wsId/:slug" element={<PublicPage />} />
+        <Route path="*" element={<AuthedShell />} />
+      </Routes>
     </BrowserRouter>
   );
 }

@@ -7,8 +7,9 @@ import TextareaAutosize from 'react-textarea-autosize';
 import { useFloating, autoUpdate, offset, flip, shift } from '@floating-ui/react';
 import { SlashCommandMenu } from './SlashCommandMenu';
 import { BlockToolbar } from './BlockToolbar';
-import { FileText, Trash2, Check, AlignLeft, AlignCenter, AlignRight, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { FileText, Trash2, Check, AlignLeft, AlignCenter, AlignRight, ChevronRight, ChevronDown, MoreHorizontal, Crop, Move, Maximize2, Minimize2 } from 'lucide-react';
 import { SubpageMenu } from './SubpageMenu';
+import { ImageCropModal } from './ImageCropModal';
 
 export const BlockNode = ({ 
   block, 
@@ -28,6 +29,8 @@ export const BlockNode = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [openImagePopover, setOpenImagePopover] = useState<'ratio' | 'position' | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
 
   const { refs: slashRefs, floatingStyles: slashStyles } = useFloating({
     open: slashState?.isOpen,
@@ -336,10 +339,13 @@ export const BlockNode = ({
              </div>
           </div>
         );
-      case 'image':
+      case 'image': {
         const alignment = block.attrs?.align || 'center';
         const width = block.attrs?.width || 'full';
-        
+        const ratio = block.attrs?.ratio || 'auto';
+        const fit = block.attrs?.fit || 'cover';
+        const position = block.attrs?.position || 'center';
+
         const widthClasses = {
           small: 'w-1/3',
           medium: 'w-2/3',
@@ -352,92 +358,211 @@ export const BlockNode = ({
           right: 'justify-end'
         };
 
+        const ratioOptions: { id: string; label: string; tw: string }[] = [
+          { id: 'auto',  label: 'Auto / Original', tw: 'aspect-auto' },
+          { id: '21:9',  label: '21:9 — Cinematic', tw: 'aspect-[21/9]' },
+          { id: '16:9',  label: '16:9 — Widescreen', tw: 'aspect-[16/9]' },
+          { id: '3:2',   label: '3:2 — Photo', tw: 'aspect-[3/2]' },
+          { id: '4:3',   label: '4:3 — Classic', tw: 'aspect-[4/3]' },
+          { id: '1:1',   label: '1:1 — Square', tw: 'aspect-square' },
+          { id: '3:4',   label: '3:4 — Portrait', tw: 'aspect-[3/4]' },
+          { id: '2:3',   label: '2:3 — Portrait', tw: 'aspect-[2/3]' },
+          { id: '9:16',  label: '9:16 — Vertical', tw: 'aspect-[9/16]' },
+        ];
+
+        // Map legacy values ('video', 'square') to the new ids.
+        const normalizedRatio = ratio === 'video' ? '16:9' : ratio === 'square' ? '1:1' : ratio;
+        const currentRatio = ratioOptions.find(r => r.id === normalizedRatio) || ratioOptions[0];
+
+        const positionOptions: { id: string; label: string; obj: string }[] = [
+          { id: 'top-left',     label: '↖',  obj: 'object-left-top' },
+          { id: 'top',          label: '↑',  obj: 'object-top' },
+          { id: 'top-right',    label: '↗',  obj: 'object-right-top' },
+          { id: 'left',         label: '←',  obj: 'object-left' },
+          { id: 'center',       label: '·',  obj: 'object-center' },
+          { id: 'right',        label: '→',  obj: 'object-right' },
+          { id: 'bottom-left',  label: '↙',  obj: 'object-left-bottom' },
+          { id: 'bottom',       label: '↓',  obj: 'object-bottom' },
+          { id: 'bottom-right', label: '↘',  obj: 'object-right-bottom' },
+        ];
+        const currentPosition = positionOptions.find(p => p.id === position) || positionOptions[4];
+
+        // Position picker only relevant when image is being cropped (cover + a fixed ratio)
+        const canCrop = fit === 'cover' && normalizedRatio !== 'auto';
+
         return (
           <div className="w-full my-6 relative group/image">
             <div className={cn("flex w-full", alignClasses[alignment as keyof typeof alignClasses])}>
               <div className={cn("relative transition-all duration-300", widthClasses[width as keyof typeof widthClasses])}>
                 {block.content ? (
-                  <img 
-                    src={block.content} 
-                    alt="Uploaded block" 
+                  <img
+                    src={block.content}
+                    alt="Uploaded block"
                     className={cn(
-                      "w-full rounded-xl border border-ocean-border object-cover shadow-sm bg-ocean-surface transition-all duration-300",
-                      block.attrs?.ratio === 'video' && "aspect-video",
-                      block.attrs?.ratio === 'square' && "aspect-square",
-                      (!block.attrs?.ratio || block.attrs?.ratio === 'auto') && "aspect-auto"
-                    )} 
+                      "w-full rounded-xl border border-ocean-border shadow-sm bg-ocean-surface transition-all duration-300",
+                      currentRatio.tw,
+                      fit === 'cover' ? 'object-cover' : 'object-contain',
+                      canCrop && currentPosition.obj
+                    )}
                   />
                 ) : (
                   <div className="w-full h-32 bg-ocean-surface border-2 border-ocean-border border-dashed rounded-xl flex items-center justify-center text-ocean-muted relative hover:border-ocean-blue/50 transition-colors">
                     Drop an image here...
                   </div>
                 )}
-                
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 px-1 py-1 bg-ocean-surface/90 backdrop-blur-md border border-ocean-border shadow-lg rounded-lg flex items-center gap-0.5 opacity-0 group-hover/image:opacity-100 transition-all duration-200 z-30 translate-y-1 group-hover/image:translate-y-0">
-                  <button 
+
+                <div className={cn(
+                  "absolute top-2 left-1/2 -translate-x-1/2 px-1 py-1 bg-ocean-surface/90 backdrop-blur-md border border-ocean-border shadow-lg rounded-lg flex items-center gap-0.5 transition-all duration-200 z-30",
+                  openImagePopover
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-1 group-hover/image:opacity-100 group-hover/image:translate-y-0"
+                )}>
+                  <button
                     onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, align: 'left' } })}
                     className={cn("p-1.5 rounded hover:bg-ocean-border-soft transition-colors", alignment === 'left' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted")}
                     title="Align left"
                   >
                     <AlignLeft className="w-4 h-4" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, align: 'center' } })}
                     className={cn("p-1.5 rounded hover:bg-ocean-border-soft transition-colors", alignment === 'center' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted")}
                     title="Align center"
                   >
                     <AlignCenter className="w-4 h-4" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, align: 'right' } })}
                     className={cn("p-1.5 rounded hover:bg-ocean-border-soft transition-colors", alignment === 'right' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted")}
                     title="Align right"
                   >
                     <AlignRight className="w-4 h-4" />
                   </button>
+
                   <div className="w-px h-4 bg-ocean-border mx-1" />
-                  <button 
+
+                  <button
                     onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, width: 'small' } })}
                     className={cn("px-2 py-1 rounded text-[10px] font-bold hover:bg-ocean-border-soft transition-colors", width === 'small' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted")}
+                    title="Small"
                   >
                     S
                   </button>
-                  <button 
+                  <button
                     onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, width: 'medium' } })}
                     className={cn("px-2 py-1 rounded text-[10px] font-bold hover:bg-ocean-border-soft transition-colors", width === 'medium' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted")}
+                    title="Medium"
                   >
                     M
                   </button>
-                  <button 
+                  <button
                     onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, width: 'full' } })}
                     className={cn("px-2 py-1 rounded text-[10px] font-bold hover:bg-ocean-border-soft transition-colors", width === 'full' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted")}
+                    title="Large"
                   >
                     L
                   </button>
+
                   <div className="w-px h-4 bg-ocean-border mx-1" />
-                  <button 
-                    onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, ratio: 'video' } })}
-                    className={cn("px-2 py-1 rounded text-[10px] font-bold hover:bg-ocean-border-soft transition-colors", block.attrs?.ratio === 'video' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted")}
-                    title="16:9"
+
+                  {/* Ratio dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setOpenImagePopover(openImagePopover === 'ratio' ? null : 'ratio')}
+                      className={cn(
+                        "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold hover:bg-ocean-border-soft transition-colors",
+                        normalizedRatio !== 'auto' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted"
+                      )}
+                      title="Aspect ratio"
+                    >
+                      {currentRatio.id === 'auto' ? 'Auto' : currentRatio.id}
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                    {openImagePopover === 'ratio' && (
+                      <div className="absolute top-full mt-1 left-0 bg-ocean-surface border border-ocean-border shadow-xl rounded-lg p-1 flex flex-col min-w-[180px] z-40">
+                        {ratioOptions.map(opt => (
+                          <button
+                            key={opt.id}
+                            onClick={() => {
+                              onUpdate({ ...block, attrs: { ...block.attrs, ratio: opt.id } });
+                              setOpenImagePopover(null);
+                            }}
+                            className={cn(
+                              "flex items-center justify-between px-3 py-1.5 rounded text-xs text-left hover:bg-ocean-border-soft transition-colors",
+                              opt.id === currentRatio.id ? "text-ocean-blue bg-ocean-blue-dim font-medium" : "text-ocean-text"
+                            )}
+                          >
+                            <span>{opt.label}</span>
+                            {opt.id === currentRatio.id && <Check className="w-3.5 h-3.5" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fit toggle */}
+                  <button
+                    onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, fit: fit === 'cover' ? 'contain' : 'cover' } })}
+                    className={cn(
+                      "p-1.5 rounded hover:bg-ocean-border-soft transition-colors",
+                      fit === 'cover' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted"
+                    )}
+                    title={fit === 'cover' ? 'Crop to fill (Cover)' : 'Show full image (Contain)'}
                   >
-                    16:9
+                    {fit === 'cover' ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
                   </button>
-                  <button 
-                    onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, ratio: 'square' } })}
-                    className={cn("px-2 py-1 rounded text-[10px] font-bold hover:bg-ocean-border-soft transition-colors", block.attrs?.ratio === 'square' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted")}
-                    title="1:1"
-                  >
-                    1:1
-                  </button>
-                  <button 
-                    onClick={() => onUpdate({ ...block, attrs: { ...block.attrs, ratio: 'auto' } })}
-                    className={cn("px-2 py-1 rounded text-[10px] font-bold hover:bg-ocean-border-soft transition-colors", !block.attrs?.ratio || block.attrs?.ratio === 'auto' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted")}
-                    title="Auto"
-                  >
-                    Auto
-                  </button>
+
+                  {/* Crop-position picker — only meaningful when image is being cropped */}
+                  {canCrop && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenImagePopover(openImagePopover === 'position' ? null : 'position')}
+                        className={cn(
+                          "flex items-center gap-1 p-1.5 rounded hover:bg-ocean-border-soft transition-colors",
+                          position !== 'center' ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted"
+                        )}
+                        title="Crop anchor point"
+                      >
+                        <Move className="w-4 h-4" />
+                      </button>
+                      {openImagePopover === 'position' && (
+                        <div className="absolute top-full mt-1 right-0 bg-ocean-surface border border-ocean-border shadow-xl rounded-lg p-2 z-40">
+                          <p className="text-[10px] text-ocean-muted px-1 pb-1.5 font-medium tracking-wide uppercase">Anchor</p>
+                          <div className="grid grid-cols-3 gap-0.5 w-[96px]">
+                            {positionOptions.map(opt => (
+                              <button
+                                key={opt.id}
+                                onClick={() => {
+                                  onUpdate({ ...block, attrs: { ...block.attrs, position: opt.id } });
+                                  setOpenImagePopover(null);
+                                }}
+                                className={cn(
+                                  "w-7 h-7 rounded flex items-center justify-center text-sm font-bold hover:bg-ocean-border-soft transition-colors",
+                                  opt.id === position ? "text-ocean-blue bg-ocean-blue-dim" : "text-ocean-muted"
+                                )}
+                                title={opt.id}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="w-px h-4 bg-ocean-border mx-1" />
-                  <button 
+
+                  <button
+                    onClick={() => setShowCropModal(true)}
+                    disabled={!block.content}
+                    className="p-1.5 hover:bg-ocean-border-soft rounded transition-colors text-ocean-muted hover:text-ocean-blue disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ocean-muted"
+                    title="Crop image…"
+                  >
+                    <Crop className="w-4 h-4" />
+                  </button>
+
+                  <button
                     onClick={() => setShowDeleteConfirm(true)}
                     className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded transition-colors text-ocean-muted"
                     title="Delete image"
@@ -447,7 +572,25 @@ export const BlockNode = ({
                 </div>
               </div>
             </div>
-            
+
+            {showCropModal && block.content && (
+              <ImageCropModal
+                src={block.attrs?.originalSrc || block.content}
+                onSave={(croppedDataUrl) => {
+                  onUpdate({
+                    ...block,
+                    content: croppedDataUrl,
+                    attrs: {
+                      ...block.attrs,
+                      originalSrc: block.attrs?.originalSrc || block.content,
+                    },
+                  });
+                  setShowCropModal(false);
+                }}
+                onClose={() => setShowCropModal(false)}
+              />
+            )}
+
             {showDeleteConfirm && (
                <div className="fixed inset-0 bg-ocean-bg/60 backdrop-blur-sm flex items-center justify-center z-[100]">
                   <div className="bg-ocean-surface border border-ocean-border shadow-2xl rounded-xl p-6 flex flex-col items-center gap-4 max-w-sm w-full mx-4">
@@ -469,12 +612,13 @@ export const BlockNode = ({
             <TextareaAutosize
               {...commonProps}
               placeholder="Add a caption..."
-              className="w-full mt-3 text-sm text-center text-ocean-muted bg-transparent border-none outline-none resize-none placeholder:text-ocean-faint focus:ring-0 italic"
+              className="w-full mt-3 text-sm text-left text-ocean-muted bg-transparent border-none outline-none resize-none placeholder:text-ocean-faint focus:ring-0 italic"
               value={block.attrs?.caption || ''}
               onChange={(e) => onUpdate({ ...block, attrs: { ...block.attrs, caption: e.target.value } })}
             />
           </div>
         );
+      }
       case 'subpage':
         const linkedPage = block.attrs.linkedPageId ? pages[block.attrs.linkedPageId] : null;
         return (

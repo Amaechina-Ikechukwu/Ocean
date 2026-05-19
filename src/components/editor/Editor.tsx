@@ -12,7 +12,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { storage } from '../../lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { toast } from 'sonner';
-import EmojiPicker from 'emoji-picker-react';
+import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react';
+import { useThemeStore } from '../../lib/store';
 import { useFloating, autoUpdate, offset, flip, shift, FloatingPortal } from '@floating-ui/react';
 
 export function Editor() {
@@ -26,6 +27,7 @@ export function Editor() {
   const [title, setTitle] = useState(page?.title || '');
   const [isHovering, setIsHovering] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const theme = useThemeStore(s => s.theme);
 
   const { refs, floatingStyles } = useFloating({
     open: showEmojiPicker,
@@ -202,10 +204,10 @@ export function Editor() {
         />
       </div>
 
-      <div id="editor-content" className="max-w-3xl mx-auto py-12 px-12 relative flex flex-col min-h-full">
+      <div id="editor-content" className="w-full py-12 pl-32 pr-20 relative flex flex-col min-h-full">
         
         {/* Breadcrumbs & Share */}
-        <div className="flex items-center justify-between pl-12 pr-4 mb-16 relative z-10">
+        <div className="flex items-center justify-between mb-16 relative z-10">
           <div className="flex items-center gap-2 text-sm text-ocean-muted group overflow-hidden">
             <span className="hover:text-ocean-text cursor-pointer transition-colors pt-0.5 shrink-0">Workspace</span>
             {breadcrumbs.map((crumb) => (
@@ -229,13 +231,13 @@ export function Editor() {
           </div>
         </div>
 
-        <div className="w-full h-8 mb-8 opacity-20 pointer-events-none pl-12 pr-6">
+        <div className="w-full h-8 mb-8 opacity-20 pointer-events-none">
           <svg viewBox="0 0 100 20" preserveAspectRatio="none" className="w-full h-full stroke-ocean-blue fill-none" strokeWidth="0.5">
             <path d="M0 10 Q 25 20, 50 10 T 100 10" />
           </svg>
         </div>
 
-        <div className="pl-12 w-full mb-8 group/page-icon">
+        <div className="w-full mb-8 group/page-icon">
           <div className="flex items-center gap-4 mb-4 relative w-fit">
             <div 
               ref={refs.setReference}
@@ -260,7 +262,8 @@ export function Editor() {
                     exit={{ opacity: 0, scale: 0.95, y: -5 }}
                     className="shadow-2xl rounded-xl overflow-hidden"
                   >
-                    <EmojiPicker 
+                    <EmojiPicker
+                      theme={theme === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
                       onEmojiClick={(emojiData) => {
                         updatePage(page.id, { icon: emojiData.emoji });
                         setShowEmojiPicker(false);
@@ -284,7 +287,7 @@ export function Editor() {
           />
         </div>
 
-        <div className="relative mt-8 group flex-1 pb-32 pl-12">
+        <div className="relative mt-8 group flex-1 pb-32">
           {pageBlocks.length === 0 ? (
             <div 
               className="text-ocean-faint text-lg cursor-text py-2 font-sans"

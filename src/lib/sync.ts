@@ -40,7 +40,8 @@ export function useFirebaseSync() {
                 name: workspace.name,
                 ownerId: uid,
                 createdAt: workspace.createdAt,
-                icon: workspace.icon || ''
+                icon: workspace.icon || '',
+                type: workspace.type || 'blog'
               }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, wsPath));
             }
 
@@ -60,7 +61,7 @@ export function useFirebaseSync() {
             if (page.deleted) {
               await updateDoc(pageRef, { deleted: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, pagePath));
             } else {
-              await setDoc(pageRef, {
+              const pagePayload: Record<string, any> = {
                 workspaceId: wsId,
                 title: page.title || '',
                 order: page.order,
@@ -71,7 +72,11 @@ export function useFirebaseSync() {
                 coverImage: page.coverImage || '',
                 published: page.published || false,
                 ownerId: uid,
-              }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, pagePath));
+              };
+              if (page.slug !== undefined) pagePayload.slug = page.slug;
+              if (page.publishedAt !== undefined) pagePayload.publishedAt = page.publishedAt;
+              if (page.seo !== undefined) pagePayload.seo = page.seo;
+              await setDoc(pageRef, pagePayload, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, pagePath));
 
               const pageBlocks = rest.blocks[page.id] || [];
               for (const block of pageBlocks) {
@@ -136,7 +141,8 @@ export function useFirebaseSync() {
         
         for (const wsDoc of wsSnap.docs) {
           const wsId = wsDoc.id;
-          loadedWorkspaces.push({ id: wsId, ...wsDoc.data() });
+          const wsData = wsDoc.data();
+          loadedWorkspaces.push({ id: wsId, type: 'blog', ...wsData });
           
           const pagesRef = query(collection(db, 'workspaces', wsId, 'pages'), where('ownerId', '==', auth.currentUser.uid));
           const pagesSnap = await getDocs(pagesRef).catch(err => handleFirestoreError(err, OperationType.LIST, `workspaces/${wsId}/pages`));

@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateKeyBetween } from 'fractional-indexing';
 import { v4 as uuidv4 } from 'uuid';
+import { auth } from './firebase';
+
+function currentUid(): string {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Not signed in');
+  return uid;
+}
 
 type ThemeState = {
   theme: 'light' | 'dark';
@@ -22,12 +29,21 @@ export const useThemeStore = create<ThemeState>()(
   )
 );
 
+export type WorkspaceType = 'blog' | 'work';
+
 export type Workspace = {
   id: string;
   name: string;
   icon: string | null;
   ownerId: string;
   createdAt: number;
+  type: WorkspaceType;
+};
+
+export type PageSeo = {
+  title?: string;
+  description?: string;
+  ogImage?: string;
 };
 
 export type Page = {
@@ -41,6 +57,9 @@ export type Page = {
   timestamp: number;
   deleted: boolean;
   published?: boolean;
+  slug?: string | null;
+  publishedAt?: number | null;
+  seo?: PageSeo | null;
   ownerId: string;
 };
 
@@ -75,7 +94,7 @@ export type EditorState = {
   expandedPages: Set<string>; // sidebar expanded state
 
   // Actions
-  createWorkspace: (name: string, icon: string | null) => Workspace;
+  createWorkspace: (name: string, icon: string | null, type?: WorkspaceType) => Workspace;
   updateWorkspace: (id: string, updates: Partial<Workspace>) => void;
   deleteWorkspace: (id: string) => void;
   setActiveWorkspace: (id: string) => void;
@@ -105,15 +124,16 @@ export const useEditorStore = create<EditorState>()(
       dirtyBlocks: new Set(),
       expandedPages: new Set(),
 
-      createWorkspace: (name, icon) => {
-        let ownerId = 'demo-user';
-        
+      createWorkspace: (name, icon, type = 'blog') => {
+        const ownerId = currentUid();
+
         const newWorkspace: Workspace = {
           id: uuidv4(),
           name,
           icon,
           ownerId,
           createdAt: Date.now(),
+          type,
         };
 
         const newPageId = uuidv4();
@@ -127,7 +147,7 @@ export const useEditorStore = create<EditorState>()(
           order: generateKeyBetween(null, null),
           timestamp: Date.now(),
           deleted: false,
-          ownerId: 'demo-user',
+          ownerId,
         };
 
         const firstBlock: Block = {
@@ -137,7 +157,7 @@ export const useEditorStore = create<EditorState>()(
           parentId: null,
           content: 'Welcome to your new workspace!',
           attrs: {},
-          ownerId: 'demo-user',
+          ownerId,
         };
 
         set((state) => ({
@@ -274,10 +294,11 @@ export const useEditorStore = create<EditorState>()(
       }),
 
       createPage: (workspaceId, parentId) => {
+        const ownerId = currentUid();
         const pages = get().pages;
         const siblings = Object.values(pages).filter(p => p.parentId === parentId && p.workspaceId === workspaceId && !p.deleted);
         const lastSibling = siblings.sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0)).pop();
-        
+
         const newPage: Page = {
           id: uuidv4(),
           workspaceId,
@@ -288,7 +309,7 @@ export const useEditorStore = create<EditorState>()(
           order: generateKeyBetween(lastSibling?.order || null, null),
           timestamp: Date.now(),
           deleted: false,
-          ownerId: 'demo-user',
+          ownerId,
         };
 
         const initialBlock: Block = {
@@ -298,7 +319,7 @@ export const useEditorStore = create<EditorState>()(
           parentId: null,
           content: '',
           attrs: {},
-          ownerId: 'demo-user',
+          ownerId,
         };
 
         set((state) => ({
@@ -359,16 +380,16 @@ export const useEditorStore = create<EditorState>()(
         const state = get();
         if (state.workspaces.length > 0) return;
 
-        // Try importing auth from firebase to get the current uid
-        // It might be risky if auth hasn't initialized, but usually it works if user provides real one
-        let ownerId = 'demo-user';
-        
+        const ownerId = auth.currentUser?.uid;
+        if (!ownerId) return;
+
         const defaultWorkspace: Workspace = {
           id: uuidv4(),
           name: 'Personal Workspace',
           icon: '🌊',
           ownerId,
           createdAt: Date.now(),
+          type: 'blog',
         };
 
         const newPageId = uuidv4();

@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-serif: "Cantata One", "Instrument Serif", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --color-ocean-bg: var(--ocean-bg);
@@ -20,31 +20,31 @@
 
 @layer base {
   :root {
-    --ocean-bg: #ffffff;
-    --ocean-surface: #ffffff;
-    --ocean-panel: #f9f9f9;
-    --ocean-border: #eaeaea;
-    --ocean-border-soft: #f4f4f4;
-    --ocean-text: #222222;
+    --ocean-bg: #F1F1F1;
+    --ocean-surface: #F1F1F1;
+    --ocean-panel: #E8E8E8;
+    --ocean-border: #D8D8D8;
+    --ocean-border-soft: #E3E3E3;
+    --ocean-text: #1C1C1C;
     --ocean-muted: #888888;
-    --ocean-faint: #cccccc;
-    --ocean-blue: #1877f2;
-    --ocean-blue-dim: rgba(24, 119, 242, 0.08);
-    --ocean-blue-glow: rgba(24, 119, 242, 0.15);
+    --ocean-faint: #CCCCCC;
+    --ocean-blue: #0009B5;
+    --ocean-blue-dim: rgba(0, 9, 181, 0.08);
+    --ocean-blue-glow: rgba(0, 9, 181, 0.15);
   }
 
   .dark {
-    --ocean-bg: #141414;
-    --ocean-surface: #1c1c1c;
-    --ocean-panel: #181818;
-    --ocean-border: #2a2a2a;
-    --ocean-border-soft: #222222;
-    --ocean-text: #eeeeee;
+    --ocean-bg: #1C1C1C;
+    --ocean-surface: #252525;
+    --ocean-panel: #202020;
+    --ocean-border: #333333;
+    --ocean-border-soft: #282828;
+    --ocean-text: #F1F1F1;
     --ocean-muted: #777777;
     --ocean-faint: #444444;
-    --ocean-blue: #2d88ff;
-    --ocean-blue-dim: rgba(45, 136, 255, 0.10);
-    --ocean-blue-glow: rgba(45, 136, 255, 0.18);
+    --ocean-blue: #3344ff;
+    --ocean-blue-dim: rgba(51, 68, 255, 0.12);
+    --ocean-blue-glow: rgba(51, 68, 255, 0.20);
   }
 
   body {

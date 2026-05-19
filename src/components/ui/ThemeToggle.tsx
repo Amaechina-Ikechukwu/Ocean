@@ -1,24 +1,14 @@
 import { Moon, Sun } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useThemeStore } from '../../lib/store';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { cn } from '../../lib/utils';
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, toggleTheme } = useThemeStore();
 
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
-
-  // Handle clicking with a wavy ripple effect
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     toggleTheme();
-    // In a real app we could add a circular reveal from e.clientX/Y
   };
 
   return (

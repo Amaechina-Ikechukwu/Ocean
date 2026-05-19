@@ -7,13 +7,22 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isValidSlug(s) { return s is string && s.size() >= 1 && s.size() <= 80 && s.matches('^[a-z0-9]+(?:-[a-z0-9]+)*$'); }
 
     function isValidWorkspace(data) {
-      return data.keys().hasAll(['name', 'ownerId', 'createdAt'])
+      return data.keys().hasAll(['name', 'ownerId', 'createdAt', 'type'])
         && data.name is string && data.name.size() <= 100
         && (data.get('icon', '') is string) && (data.get('icon', '').size() <= 100)
         && data.ownerId == request.auth.uid
-        && data.createdAt is number;
+        && data.createdAt is number
+        && data.type is string && (data.type == 'blog' || data.type == 'work');
+    }
+
+    function isValidSeo(seo) {
+      return seo is map
+        && (seo.get('title', '') is string) && (seo.get('title', '').size() <= 200)
+        && (seo.get('description', '') is string) && (seo.get('description', '').size() <= 500)
+        && (seo.get('ogImage', '') is string) && (seo.get('ogImage', '').size() <= 1000);
     }
 
     function isValidPage(data) {
@@ -27,6 +36,9 @@ service cloud.firestore {
         && data.timestamp is number
         && data.deleted is bool
         && (data.get('published', false) is bool)
+        && (!('slug' in data) || data.slug == null || isValidSlug(data.slug))
+        && (!('publishedAt' in data) || data.publishedAt == null || data.publishedAt is number)
+        && (!('seo' in data) || data.seo == null || isValidSeo(data.seo))
         && data.ownerId == request.auth.uid;
     }
 
@@ -39,32 +51,47 @@ service cloud.firestore {
         && data.ownerId == request.auth.uid;
     }
 
+    function pageIsPublic(wsId, pageId) {
+      return get(/databases/$(database)/documents/workspaces/$(wsId)/pages/$(pageId)).data.published == true
+        && get(/databases/$(database)/documents/workspaces/$(wsId)/pages/$(pageId)).data.deleted == false;
+    }
+
     match /workspaces/{workspaceId} {
       allow read: if isSignedIn() && existing().ownerId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(workspaceId) && isValidWorkspace(incoming()) && incoming().keys().size() <= 6 && incoming().createdAt == request.time.toMillis();
+      allow create: if isSignedIn() && isValidId(workspaceId) && isValidWorkspace(incoming()) && incoming().keys().size() <= 7 && incoming().createdAt == request.time.toMillis();
       allow update: if isSignedIn() && isValidId(workspaceId) && isValidWorkspace(incoming()) && incoming().ownerId == existing().ownerId
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'icon']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'icon', 'type']);
       allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
 
       match /pages/{pageId} {
-        allow read: if isSignedIn() && existing().ownerId == request.auth.uid;
+        allow get: if (isSignedIn() && existing().ownerId == request.auth.uid)
+          || (existing().published == true && existing().deleted == false);
         allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-        allow create: if isSignedIn() && isValidId(pageId) && isValidPage(incoming()) && incoming().keys().size() <= 10 && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid;
+        allow create: if isSignedIn() && isValidId(pageId) && isValidPage(incoming()) && incoming().keys().size() <= 13 && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid;
         allow update: if isSignedIn() && isValidId(pageId) && isValidPage(incoming()) && existing().ownerId == request.auth.uid
           && incoming().workspaceId == existing().workspaceId
-          && incoming().diff(existing()).affectedKeys().hasOnly(['parentId', 'title', 'icon', 'coverImage', 'order', 'timestamp', 'deleted', 'published']);
+          && incoming().diff(existing()).affectedKeys().hasOnly(['parentId', 'title', 'icon', 'coverImage', 'order', 'timestamp', 'deleted', 'published', 'slug', 'publishedAt', 'seo']);
         allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
 
         match /blocks/{blockId} {
-          allow read: if isSignedIn() && existing().ownerId == request.auth.uid;
-          allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+          allow get: if (isSignedIn() && existing().ownerId == request.auth.uid)
+            || pageIsPublic(workspaceId, pageId);
+          allow list: if (isSignedIn() && resource.data.ownerId == request.auth.uid)
+            || pageIsPublic(workspaceId, pageId);
           allow create: if isSignedIn() && isValidId(blockId) && isValidBlock(incoming()) && incoming().keys().size() <= 6 && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid;
           allow update: if isSignedIn() && isValidId(blockId) && isValidBlock(incoming()) && existing().ownerId == request.auth.uid
             && incoming().diff(existing()).affectedKeys().hasOnly(['type', 'order', 'parentId', 'content', 'attrs']);
           allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
         }
       }
+    }
+
+    // Slug -> page resolution for anonymous public renderer.
+    // Maintained server-side by Cloud Function on page write; no client writes.
+    match /publicPages/{slug} {
+      allow get: if true;
+      allow list, create, update, delete: if false;
     }
   }
 }

@@ -94,10 +94,8 @@ export function Sidebar() {
           className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-ocean-border-soft transition-colors text-ocean-text group overflow-hidden"
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-8 h-8 rounded-xl bg-ocean-blue flex items-center justify-center flex-shrink-0 text-white shadow-lg shadow-ocean-blue/20 bg-gradient-to-br from-ocean-blue to-blue-600 relative overflow-hidden group-hover:scale-105 transition-transform">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
+            <div className="w-8 h-8 rounded-xl bg-ocean-blue flex items-center justify-center flex-shrink-0 shadow-lg shadow-ocean-blue/20 bg-gradient-to-br from-ocean-blue to-blue-600 relative overflow-hidden group-hover:scale-105 transition-transform">
+              <img src="/assets/logo-icon-white.png" alt="Ocean" className="w-5 h-5 object-contain" />
               <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
             <span 
