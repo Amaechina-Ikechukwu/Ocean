@@ -1,5 +1,7 @@
+'use client';
+
 import React, { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Block, BlockType, useEditorStore } from '../../lib/store';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -22,7 +24,7 @@ export const BlockNode = ({
   insertBlock: (afterId: string) => void,
   deleteBlock: (blockId: string) => void
 }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const pages = useEditorStore(state => state.pages);
   const [slashState, setSlashState] = useState<{ isOpen: boolean, query: string, top: number, left: number } | null>(null);
   const [toolbarState, setToolbarState] = useState<{ isOpen: boolean, top: number, left: number } | null>(null);
@@ -641,7 +643,7 @@ export const BlockNode = ({
                <button 
                   onClick={() => {
                      if (linkedPage && !linkedPage.deleted) {
-                        navigate(`/app/${linkedPage.id}`);
+                        router.push(`/app/${linkedPage.id}`);
                      }
                   }}
                   className="text-xs text-ocean-muted hover:text-ocean-blue transition-colors flex items-center gap-1 mt-0.5 opacity-60 group-hover:opacity-100"

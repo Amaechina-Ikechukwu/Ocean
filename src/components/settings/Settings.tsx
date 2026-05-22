@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'motion/react';
 import { useThemeStore } from '../../lib/store';
 import { LogOut, MonitorSmartphone } from 'lucide-react';

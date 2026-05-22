@@ -1,8 +1,10 @@
+'use client';
+
 import React, { useState } from 'react';
 import { MoreHorizontal, Pencil, Copy, ArrowRightLeft, Link, Trash2, Star, Clock, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Page, useEditorStore } from '../../lib/store';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useFloating, autoUpdate, offset, flip, shift, FloatingPortal } from '@floating-ui/react';
 import { ConfirmModal } from '../ui/ConfirmModal';
@@ -11,7 +13,7 @@ export function PageMenu({ page }: { page: Page }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const { deletePage } = useEditorStore();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const { refs, floatingStyles } = useFloating({
     open: isOpen,
@@ -27,7 +29,7 @@ export function PageMenu({ page }: { page: Page }) {
 
   const handleDelete = () => {
     deletePage(page.id);
-    navigate('/app');
+    router.push('/app');
     toast.success('Page moved to trash');
   };
 

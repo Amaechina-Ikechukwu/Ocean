@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bold, Italic, Underline, Strikethrough, Code, Link, MessageSquare, Sparkles, ChevronDown, Type, Heading1, Heading2, Heading3, Quote, List, ListOrdered, CheckSquare, MessageSquareIcon } from 'lucide-react';

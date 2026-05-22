@@ -1,8 +1,10 @@
+'use client';
+
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, FileText, Plus, MoreHorizontal, Trash2, Link, Pencil, Copy, ArrowRightLeft } from 'lucide-react';
 import { useEditorStore, Page } from '../../lib/store';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { cn } from '../../lib/utils';
 import { useFloating, autoUpdate, offset, flip, shift, FloatingPortal } from '@floating-ui/react';
 import { ConfirmModal } from '../ui/ConfirmModal';
@@ -11,13 +13,13 @@ export const PageTreeItem: React.FC<{ page: Page; depth?: number }> = ({
   page, 
   depth = 0 
 }) => {
-  const navigate = useNavigate();
-  const { 
-    pages, 
-    activePageId, 
-    expandedPages, 
-    toggleSidebarPage, 
-    createPage, 
+  const router = useRouter();
+  const {
+    pages,
+    activePageId,
+    expandedPages,
+    toggleSidebarPage,
+    createPage,
     setActivePage,
     deletePage
   } = useEditorStore();
@@ -54,12 +56,12 @@ export const PageTreeItem: React.FC<{ page: Page; depth?: number }> = ({
   const handleAddChild = (e: React.MouseEvent) => {
     e.stopPropagation();
     const newPage = createPage(page.workspaceId, page.id);
-    navigate(`/app/${newPage.id}`);
+    router.push(`/app/${newPage.id}`);
   };
 
   const handleClick = () => {
     setActivePage(page.id);
-    navigate(`/app/${page.id}`);
+    router.push(`/app/${page.id}`);
   };
 
   return (

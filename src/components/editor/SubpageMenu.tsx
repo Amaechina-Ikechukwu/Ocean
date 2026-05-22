@@ -1,14 +1,16 @@
+'use client';
+
 import React, { useState } from 'react';
 import { MoreHorizontal, Copy, ArrowRightLeft, Link, Trash2, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Page } from '../../lib/store';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useFloating, autoUpdate, offset, flip, shift, FloatingPortal } from '@floating-ui/react';
 
 export function SubpageMenu({ page, onRemove }: { page: Page, onRemove: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const { refs, floatingStyles } = useFloating({
     open: isOpen,
@@ -60,7 +62,7 @@ export function SubpageMenu({ page, onRemove }: { page: Page, onRemove: () => vo
                 
                 <button 
                   onClick={() => {
-                    navigate(`/app/${page.id}`);
+                    router.push(`/app/${page.id}`);
                     setIsOpen(false);
                   }}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-ocean-text hover:bg-ocean-blue-dim transition-colors text-left group"

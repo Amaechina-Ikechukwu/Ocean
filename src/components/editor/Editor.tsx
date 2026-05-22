@@ -1,5 +1,7 @@
+'use client';
+
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useRouter } from 'next/navigation';
 import { useEditorStore, Block, BlockType } from '../../lib/store';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, ChevronRight, Plus, FileText, Smile } from 'lucide-react';
@@ -17,8 +19,9 @@ import { useThemeStore } from '../../lib/store';
 import { useFloating, autoUpdate, offset, flip, shift, FloatingPortal } from '@floating-ui/react';
 
 export function Editor() {
-  const { pageId } = useParams();
-  const navigate = useNavigate();
+  const params = useParams<{ pageId?: string }>();
+  const pageId = params?.pageId;
+  const router = useRouter();
   const { pages, blocks, updatePage, updateBlock, insertBlock, reorderBlocks, activeWorkspaceId, createPage, activePageId, setActivePage } = useEditorStore();
   
   const pageArray = Object.values(pages);
@@ -48,15 +51,15 @@ export function Editor() {
         setActivePage(page.id);
       }
       if (page.id !== pageId) {
-        navigate(`/app/${page.id}`, { replace: true });
+        router.replace(`/app/${page.id}`);
       }
     } else {
       const workspacePages = pageArray.filter(p => p.workspaceId === activeWorkspaceId && !p.deleted);
       if (workspacePages.length > 0) {
-        navigate(`/app/${workspacePages[0].id}`, { replace: true });
+        router.replace(`/app/${workspacePages[0].id}`);
       }
     }
-  }, [page, navigate, activeWorkspaceId, pageArray, activePageId, pageId, setActivePage]);
+  }, [page, router, activeWorkspaceId, pageArray, activePageId, pageId, setActivePage]);
 
   useEffect(() => {
     const handleOnline = () => toast.success('Back online! Syncing changes...');
@@ -75,12 +78,12 @@ export function Editor() {
 
   const pageBlocks = blocks[page.id] || [];
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTitleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTitle(e.target.value);
     updatePage(page.id, { title: e.target.value });
   };
 
-  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       // focus first block or create one
@@ -215,7 +218,7 @@ export function Editor() {
                 <ChevronRight className="w-3.5 h-3.5 opacity-50 shrink-0" />
                 <span 
                   className="hover:text-ocean-text cursor-pointer transition-colors pt-0.5 truncate min-w-0"
-                  onClick={() => navigate(`/app/${crumb.id}`)}
+                  onClick={() => router.push(`/app/${crumb.id}`)}
                 >
                   {crumb.title || 'Untitled'}
                 </span>
