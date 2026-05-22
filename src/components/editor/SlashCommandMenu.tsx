@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Type, Heading1, Heading2, Heading3, Quote, Code, List, ListOrdered, CheckSquare, ListTree, Image as ImageIcon, Sparkles, LayoutList, Table as TableIcon, FileText } from 'lucide-react';

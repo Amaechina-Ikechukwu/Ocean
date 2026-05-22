@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Check, X, Square, RectangleHorizontal, RectangleVertical } from 'lucide-react';
 import { cn } from '../../lib/utils';

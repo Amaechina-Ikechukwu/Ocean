@@ -1,3 +1,5 @@
+'use client';
+
 import { Moon, Sun } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useThemeStore } from '../../lib/store';

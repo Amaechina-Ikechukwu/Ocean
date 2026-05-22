@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { signInWithGoogle } from '../../lib/firebase';
 

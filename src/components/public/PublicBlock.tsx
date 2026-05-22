@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Block } from '../../lib/store';
 import { cn } from '../../lib/utils';

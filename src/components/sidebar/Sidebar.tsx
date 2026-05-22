@@ -1,10 +1,12 @@
+'use client';
+
 import React, { useEffect, useState, useRef } from 'react';
 import { Search, Plus, Settings, Trash, ChevronDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEditorStore } from '../../lib/store';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { cn } from '../../lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { PageTreeItem } from './PageTree';
 
 export function Sidebar() {
@@ -17,7 +19,7 @@ export function Sidebar() {
     updateWorkspace,
     deleteWorkspace
   } = useEditorStore();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
@@ -76,7 +78,7 @@ export function Sidebar() {
   const handleAddTopLevelPage = () => {
     if (!activeWorkspaceId) return;
     const newPage = createPage(activeWorkspaceId, null);
-    navigate(`/app/${newPage.id}`);
+    router.push(`/app/${newPage.id}`);
   };
 
   return (
@@ -141,7 +143,7 @@ export function Sidebar() {
                             onClick={() => {
                               useEditorStore.getState().setActiveWorkspace(w.id);
                               setWorkspaceMenuOpen(false);
-                              navigate('/app');
+                              router.push('/app');
                             }}
                             className={cn(
                               "flex-1 flex items-center gap-2 p-2 rounded-md hover:bg-ocean-border-soft transition-colors text-sm text-left overflow-hidden min-w-0 flex-nowrap",
@@ -215,7 +217,7 @@ export function Sidebar() {
                       setNewWorkspaceName("");
                       setShowCreateWorkspace(false);
                       setWorkspaceMenuOpen(false);
-                      navigate('/app');
+                      router.push('/app');
                     }
                   }}
                 />
@@ -237,7 +239,7 @@ export function Sidebar() {
                         setNewWorkspaceName("");
                         setShowCreateWorkspace(false);
                         setWorkspaceMenuOpen(false);
-                        navigate('/app');
+                        router.push('/app');
                        }
                     }} 
                     className="px-3 py-1.5 text-xs font-medium bg-ocean-blue text-white rounded hover:bg-blue-600 transition-colors"
@@ -254,7 +256,7 @@ export function Sidebar() {
       {/* Global Actions */}
       <div className="px-3 mb-4 space-y-1">
         <button 
-          onClick={() => navigate('/app/search')}
+          onClick={() => router.push('/app/search')}
           className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-xl hover:bg-ocean-border-soft transition-all text-ocean-text group/search border border-transparent hover:border-ocean-border/50"
         >
           <div className="flex items-center gap-2.5">
@@ -266,7 +268,7 @@ export function Sidebar() {
           </kbd>
         </button>
         <button 
-          onClick={() => navigate('/app/settings')}
+          onClick={() => router.push('/app/settings')}
           className="w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg hover:bg-ocean-border-soft transition-colors text-ocean-text"
         >
           <Settings className="w-4 h-4 text-ocean-muted" />

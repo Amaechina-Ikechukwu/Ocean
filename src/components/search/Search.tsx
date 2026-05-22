@@ -1,13 +1,15 @@
+'use client';
+
 import { motion } from 'motion/react';
 import { Search as SearchIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useEditorStore } from '../../lib/store';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 export function Search() {
   const [query, setQuery] = useState('');
   const { pages, blocks, setActivePage } = useEditorStore();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const results = Object.values(pages).filter(p => !p.deleted).map(page => {
     const pageBlocks = blocks[page.id] || [];
@@ -56,7 +58,7 @@ export function Search() {
                   key={page.id}
                   onClick={() => {
                     setActivePage(page.id);
-                    navigate(`/app/${page.id}`);
+                    router.push(`/app/${page.id}`);
                   }}
                   className="w-full flex items-center justify-between p-4 bg-ocean-surface border border-ocean-border hover:border-ocean-blue rounded-xl text-left transition-all group overflow-hidden relative"
                 >
