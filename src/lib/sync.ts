@@ -31,6 +31,10 @@ export function useFirebaseSync() {
             
             const workspace = rest.workspaces.find(w => w.id === wsId);
             if (workspace) {
+              // If this workspace is owned by someone else, don't attempt to write it.
+              if (workspace.ownerId && workspace.ownerId !== uid) {
+                continue;
+              }
               // Read the remote workspace doc to determine whether this is a create or update.
               const remoteSnap = await getDoc(wsRef).catch(() => null);
               const remoteExists = remoteSnap && remoteSnap.exists();
