@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { generateKeyBetween } from 'fractional-indexing';
 import { useEditorStore } from './store';
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, getDocs, updateDoc, query, where, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -193,14 +195,16 @@ export function useFirebaseSync() {
           }
         }
 
-        if (active && loadedWorkspaces.length > 0) {
-          useEditorStore.setState(state => {
-            return {
+        if (active) {
+          if (loadedWorkspaces.length > 0) {
+            useEditorStore.setState(state => ({
               workspaces: loadedWorkspaces,
               pages: { ...state.pages, ...loadedPages },
               blocks: { ...state.blocks, ...loadedBlocks },
-            };
-          });
+            }));
+          } else {
+            await createDefaultWorkspace();
+          }
         }
       } catch (error) {
          console.error("Load data error", error);
@@ -211,9 +215,66 @@ export function useFirebaseSync() {
       if (user) loadData();
     });
 
-    return () => {
-      active = false;
-      unsub();
-    };
-  }, []);
+      return () => {
+        active = false;
+        unsub();
+      };
+    }, []);
+  }
+
+async function createDefaultWorkspace() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const uid = user.uid;
+
+  const wsId = uuidv4();
+  const pageId = uuidv4();
+  const blockId = uuidv4();
+  const now = Date.now();
+
+  const workspace = {
+    name: 'Personal Workspace',
+    ownerId: uid,
+    createdAt: now,
+    icon: '🌊',
+    type: 'blog',
+  };
+
+  const page = {
+    workspaceId: wsId,
+    title: 'Welcome to Ocean',
+    order: generateKeyBetween(null, null),
+    timestamp: now,
+    deleted: false,
+    parentId: null,
+    icon: '✨',
+    coverImage: '',
+    published: false,
+    ownerId: uid,
+  };
+
+  const block = {
+    type: 'text' as const,
+    order: generateKeyBetween(null, null),
+    content: 'Dive deep into your thoughts. Type / for commands.',
+    parentId: null,
+    attrs: {},
+    ownerId: uid,
+  };
+
+  try {
+    await setDoc(doc(db, 'workspaces', wsId), workspace);
+    await setDoc(doc(db, 'workspaces', wsId, 'pages', pageId), page);
+    await setDoc(doc(db, 'workspaces', wsId, 'pages', pageId, 'blocks', blockId), block);
+
+    useEditorStore.setState({
+      workspaces: [{ id: wsId, ...workspace }],
+      pages: { [pageId]: { id: pageId, ...page } },
+      blocks: { [pageId]: [{ id: blockId, ...block }] },
+      activeWorkspaceId: wsId,
+      activePageId: pageId,
+    });
+  } catch (error) {
+    console.error('Failed to create default workspace', error);
+  }
 }
