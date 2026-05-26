@@ -15,7 +15,7 @@ import {
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'node:fs';
-import { doc, setDoc, getDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 const PROJECT_ID = 'ocean-rules-test';
 const ALICE = 'alice-uid';
@@ -219,5 +219,32 @@ describe('Dirty dozen', () => {
     });
     const db = anonCtx();
     await assertSucceeds(getDoc(doc(db, 'workspaces', wsId, 'pages', 'p1')));
+  });
+
+  it('Bonus: anonymous CAN query published pages in a workspace', async () => {
+    const wsId = await seedAliceWorkspace();
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const fs = ctx.firestore();
+      await setDoc(doc(fs, 'workspaces', wsId, 'pages', 'p_public'), {
+        ...validPage(ALICE, wsId),
+        published: true,
+        slug: 'hello-world',
+      });
+      await setDoc(doc(fs, 'workspaces', wsId, 'pages', 'p_private'), {
+        ...validPage(ALICE, wsId),
+        published: false,
+      });
+    });
+
+    const db = anonCtx();
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'workspaces', wsId, 'pages'),
+          where('published', '==', true),
+          where('deleted', '==', false)
+        )
+      )
+    );
   });
 });

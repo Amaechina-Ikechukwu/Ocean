@@ -67,7 +67,8 @@ service cloud.firestore {
       match /pages/{pageId} {
         allow get: if (isSignedIn() && existing().ownerId == request.auth.uid)
           || (existing().published == true && existing().deleted == false);
-        allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+        allow list: if (isSignedIn() && resource.data.ownerId == request.auth.uid)
+          || (resource.data.published == true && resource.data.deleted == false);
         allow create: if isSignedIn() && isValidId(pageId) && isValidPage(incoming()) && incoming().keys().size() <= 13 && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerId == request.auth.uid;
         allow update: if isSignedIn() && isValidId(pageId) && isValidPage(incoming()) && existing().ownerId == request.auth.uid
           && incoming().workspaceId == existing().workspaceId

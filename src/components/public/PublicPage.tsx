@@ -14,34 +14,40 @@ type LoadState =
   | { kind: 'ok'; page: Page; blocks: Block[] };
 
 export function PublicPage() {
-  const { wsId, slug } = useParams<{ wsId: string; slug: string }>();
+  const params = useParams<{ wsId?: string; slug?: string }>();
+  const routeWsId = typeof params.wsId === 'string' ? params.wsId : undefined;
+  const routeSlug = typeof params.slug === 'string' ? params.slug : undefined;
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!wsId || !slug) {
+      if (!routeSlug) {
         setState({ kind: 'notfound' });
         return;
       }
       try {
         let pageDocSnap: { id: string; data: any } | null = null;
+        let resolvedWsId: string | null = null;
 
-        const mirrorRef = doc(db, 'publicPages', slug);
+        const mirrorRef = doc(db, 'publicPages', routeSlug);
         const mirrorSnap = await getDoc(mirrorRef).catch(() => null);
         if (mirrorSnap && mirrorSnap.exists()) {
           const mirror = mirrorSnap.data() as { workspaceId: string; pageId: string };
-          if (mirror.workspaceId === wsId) {
+          if (!routeWsId || mirror.workspaceId === routeWsId) {
+            resolvedWsId = mirror.workspaceId;
             const pageRef = doc(db, 'workspaces', mirror.workspaceId, 'pages', mirror.pageId);
             const pSnap = await getDoc(pageRef);
-            if (pSnap.exists()) pageDocSnap = { id: pSnap.id, data: pSnap.data() };
+            if (pSnap.exists()) {
+              pageDocSnap = { id: pSnap.id, data: pSnap.data() };
+            }
           }
         }
 
-        if (!pageDocSnap) {
+        if (!pageDocSnap && routeWsId) {
           const q = query(
-            collection(db, 'workspaces', wsId, 'pages'),
-            where('slug', '==', slug),
+            collection(db, 'workspaces', routeWsId, 'pages'),
+            where('slug', '==', routeSlug),
             where('published', '==', true),
             where('deleted', '==', false)
           );
@@ -49,6 +55,7 @@ export function PublicPage() {
           if (snap && !snap.empty) {
             const d = snap.docs[0];
             pageDocSnap = { id: d.id, data: d.data() };
+            resolvedWsId = routeWsId;
           }
         }
 
@@ -58,6 +65,13 @@ export function PublicPage() {
         }
 
         const pageData = pageDocSnap.data;
+        const pageWorkspaceId = typeof pageData.workspaceId === 'string' ? pageData.workspaceId : resolvedWsId;
+
+        if (!pageWorkspaceId) {
+          if (!cancelled) setState({ kind: 'notfound' });
+          return;
+        }
+
         if (!pageData.published || pageData.deleted) {
           if (!cancelled) setState({ kind: 'notfound' });
           return;
@@ -66,7 +80,7 @@ export function PublicPage() {
         const page: Page = { id: pageDocSnap.id, ...pageData, parentId: pageData.parentId || null };
 
         const blocksSnap = await getDocs(
-          collection(db, 'workspaces', wsId, 'pages', pageDocSnap.id, 'blocks')
+          collection(db, 'workspaces', pageWorkspaceId, 'pages', pageDocSnap.id, 'blocks')
         );
         const blocks: Block[] = blocksSnap.docs
           .map(b => ({ id: b.id, ...(b.data() as any), parentId: b.data().parentId || null }))
@@ -79,7 +93,7 @@ export function PublicPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [wsId, slug]);
+  }, [routeWsId, routeSlug]);
 
   useEffect(() => {
     if (state.kind !== 'ok') return;

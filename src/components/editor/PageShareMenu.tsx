@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Share, Globe, Download, Check, X, Link2, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useFloating, autoUpdate, offset, flip, shift, FloatingPortal } from '@floating-ui/react';
 import { doc, setDoc } from 'firebase/firestore';
 import { Page, Block } from '../../lib/store';
 import { useEditorStore } from '../../lib/store';
@@ -19,15 +18,6 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
   const [invites, setInvites] = useState<{ email: string; role: string }[]>([]);
   const { updatePage, pages } = useEditorStore();
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const { refs, floatingStyles } = useFloating({
-    open: isOpen,
-    onOpenChange: setIsOpen,
-    whileElementsMounted: autoUpdate,
-    strategy: 'fixed',
-    placement: 'bottom-end',
-    middleware: [offset(8), flip(), shift({ padding: 12 })],
-  });
 
   const initialSlug = page.slug || slugify(page.title || 'untitled');
   const [slug, setSlug] = useState(initialSlug);
@@ -82,8 +72,7 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       const inTrigger = menuRef.current?.contains(target);
-      const inFloating = refs.floating.current?.contains(target);
-      if (!inTrigger && !inFloating) {
+      if (!inTrigger) {
         setIsOpen(false);
       }
     };
@@ -91,7 +80,7 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, refs.floating]);
+  }, [isOpen]);
 
   const handleInvite = () => {
     if (inviteEmail && inviteEmail.includes('@')) {
@@ -224,7 +213,6 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
   return (
     <div className="relative" ref={menuRef}>
       <button
-        ref={refs.setReference}
         onMouseDown={(e) => {
           if (isOpen) e.stopPropagation();
         }}
@@ -235,17 +223,14 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
         <Share className="w-4 h-4" />
       </button>
 
-      <FloatingPortal>
-        <AnimatePresence>
-          {isOpen && (
+      <AnimatePresence>
+        {isOpen && (
              <motion.div
-              ref={refs.setFloating}
-              style={floatingStyles}
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="w-72 bg-ocean-surface border border-ocean-border shadow-xl rounded-xl z-[100] overflow-hidden font-sans origin-top-right"
+              className="absolute right-0 top-full mt-2 w-72 bg-ocean-surface border border-ocean-border shadow-xl rounded-xl z-[100] overflow-hidden font-sans origin-top-right"
             >
             <div className="p-3 border-b border-ocean-border">
               <div className="text-xs font-semibold uppercase text-ocean-muted mb-2 tracking-wide">Invite</div>
@@ -385,7 +370,6 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
           </motion.div>
           )}
         </AnimatePresence>
-      </FloatingPortal>
     </div>
   );
 }
