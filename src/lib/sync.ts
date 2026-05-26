@@ -237,7 +237,7 @@ async function createDefaultWorkspace() {
     ownerId: uid,
     createdAt: now,
     icon: '🌊',
-    type: 'blog',
+    type: 'blog' as const,
   };
 
   const page = {
