@@ -3,7 +3,8 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 
 admin.initializeApp();
-const db = admin.firestore();
+const databaseId = process.env.FIRESTORE_DATABASE_ID;
+const db = databaseId ? admin.firestore(databaseId) : admin.firestore();
 
 /**
  * Maintain the /publicPages/{slug} mirror collection for anonymous slug -> page resolution.

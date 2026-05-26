@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { useEditorStore } from './store';
 import { db, auth } from './firebase';
-import { collection, doc, setDoc, getDocs, updateDoc, query, where, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, updateDoc, query, where, getDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from './firestore-errors';
-import { createOceanApiClient, API_ORIGIN } from './api';
 
 export function useFirebaseSync() {
   const { workspaces, pages, blocks, dirtyPages, dirtyBlocks } = useEditorStore();
@@ -11,11 +10,6 @@ export function useFirebaseSync() {
   useEffect(() => {
     if (!auth.currentUser) return;
     const uid = auth.currentUser.uid;
-    const oceanApiClient = createOceanApiClient({
-      baseUrl: API_ORIGIN,
-      getIdToken: () => auth.currentUser!.getIdToken()
-    });
-
     if (dirtyPages.size > 0 || dirtyBlocks.size > 0) {
       const { setSidebarExpanded, toggleSidebarPage, ...rest } = useEditorStore.getState();
       
@@ -122,16 +116,28 @@ export function useFirebaseSync() {
                 }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, blockPath));
               }
               
-              oceanApiClient.request(`/api/ai/pages/${page.id}/vectorize`, {
-                method: 'POST',
-                body: JSON.stringify({ workspaceId: wsId, limit: 100 })
+              await setDoc(doc(db, 'vectorizationRequests', page.id), {
+                workspaceId: wsId,
+                pageId: page.id,
+                type: 'page',
+                pending: true,
+                createdAt: serverTimestamp(),
+                ownerId: uid,
               }).catch(() => {});
             }
           }
 
           for (const { pageId, blockId } of dirtyBlocks) {
-            oceanApiClient.request(`/api/ai/pages/${pageId}/blocks/${blockId}/vectorize`, {
-              method: 'POST'
+            const blockPage = rest.pages[pageId];
+            if (!blockPage) continue;
+            await setDoc(doc(db, 'vectorizationRequests', `${pageId}_${blockId}`), {
+              workspaceId: blockPage.workspaceId,
+              pageId,
+              blockId,
+              type: 'block',
+              pending: true,
+              createdAt: serverTimestamp(),
+              ownerId: uid,
             }).catch(() => {});
           }
 

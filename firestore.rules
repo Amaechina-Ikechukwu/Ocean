@@ -59,7 +59,7 @@ service cloud.firestore {
     match /workspaces/{workspaceId} {
       allow read: if isSignedIn() && existing().ownerId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(workspaceId) && isValidWorkspace(incoming()) && incoming().keys().size() <= 7 && incoming().createdAt == request.time.toMillis();
+      allow create: if isSignedIn() && isValidId(workspaceId) && isValidWorkspace(incoming()) && incoming().keys().size() <= 7;
       allow update: if isSignedIn() && isValidId(workspaceId) && isValidWorkspace(incoming()) && incoming().ownerId == existing().ownerId
         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'icon', 'type']);
       allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
@@ -85,6 +85,12 @@ service cloud.firestore {
           allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
         }
       }
+    }
+
+    // Vectorization queue - clients can enqueue pages/blocks for AI processing.
+    match /vectorizationRequests/{docId} {
+      allow create: if isSignedIn() && incoming().ownerId == request.auth.uid;
+      allow read, update, delete: if false;
     }
 
     // Slug -> page resolution for anonymous public renderer.
