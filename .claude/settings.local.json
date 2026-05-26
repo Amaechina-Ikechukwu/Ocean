@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__5a07035d-cd1c-4d01-966d-0b08632df7a8__list_teams",
+      "mcp__5a07035d-cd1c-4d01-966d-0b08632df7a8__list_issue_statuses",
+      "mcp__5a07035d-cd1c-4d01-966d-0b08632df7a8__save_project",
+      "mcp__5a07035d-cd1c-4d01-966d-0b08632df7a8__save_issue",
+      "mcp__5a07035d-cd1c-4d01-966d-0b08632df7a8__list_projects",
+      "WebSearch",
+      "WebFetch(domain:feather.so)",
+      "WebFetch(domain:news.ycombinator.com)",
+      "WebFetch(domain:forum.ghost.org)",
+      "mcp__claude_ai_Linear__list_users",
+      "mcp__claude_ai_Linear__list_projects",
+      "mcp__claude_ai_Linear__save_issue",
+      "Bash(git -C \"/c/Users/User/March/Projects/Web/Ocean\" status)",
+      "Bash(git -C \"/c/Users/User/March/Projects/Web/Ocean\" branch -a)",
+      "Bash(git -C \"/c/Users/User/March/Projects/Web/Ocean\" log --oneline -5)"
+    ]
+  }
+}

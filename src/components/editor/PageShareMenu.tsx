@@ -4,8 +4,10 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Share, Globe, Download, Check, X, Link2, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFloating, autoUpdate, offset, flip, shift, FloatingPortal } from '@floating-ui/react';
+import { doc, setDoc } from 'firebase/firestore';
 import { Page, Block } from '../../lib/store';
 import { useEditorStore } from '../../lib/store';
+import { db } from '../../lib/firebase';
 import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -22,6 +24,7 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
     open: isOpen,
     onOpenChange: setIsOpen,
     whileElementsMounted: autoUpdate,
+    strategy: 'fixed',
     placement: 'bottom-end',
     middleware: [offset(8), flip(), shift({ padding: 12 })],
   });
@@ -52,6 +55,29 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
 
   const publicUrl = `${window.location.origin}/p/${page.workspaceId}/${slug}`;
 
+  const persistPageState = async (updates: Partial<Page>) => {
+    const pageRef = doc(db, 'workspaces', page.workspaceId, 'pages', page.id);
+    await setDoc(
+      pageRef,
+      {
+        workspaceId: page.workspaceId,
+        title: page.title || '',
+        order: page.order,
+        timestamp: Date.now(),
+        deleted: page.deleted,
+        parentId: page.parentId || '',
+        icon: page.icon || '',
+        coverImage: page.coverImage || '',
+        published: updates.published !== undefined ? updates.published : page.published || false,
+        ownerId: page.ownerId,
+        slug: updates.slug !== undefined ? updates.slug : page.slug || '',
+        publishedAt: updates.publishedAt !== undefined ? updates.publishedAt : page.publishedAt ?? null,
+        seo: updates.seo !== undefined ? updates.seo : page.seo ?? null,
+      },
+      { merge: true }
+    );
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -79,8 +105,14 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
 
   const handlePublishToggle = async () => {
     if (page.published) {
-      updatePage(page.id, { published: false, publishedAt: null });
-      toast.info('Page unpublished', { description: 'This page is no longer public.' });
+      const updates = { published: false, publishedAt: null };
+      updatePage(page.id, updates);
+      try {
+        await persistPageState(updates);
+        toast.info('Page unpublished', { description: 'This page is no longer public.' });
+      } catch (error) {
+        toast.error('Failed to unpublish page');
+      }
       return;
     }
     if (slugError) {
@@ -88,27 +120,40 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
       return;
     }
     setSaving(true);
-    updatePage(page.id, {
-      published: true,
-      slug,
-      publishedAt: Date.now(),
-      seo: (seoTitle || seoDesc) ? { title: seoTitle || undefined, description: seoDesc || undefined } : null,
-    });
-    setSaving(false);
-    navigator.clipboard.writeText(publicUrl).catch(() => {});
-    toast.success('Page published!', { description: 'Public link copied to clipboard.' });
+    try {
+      const updates = {
+        published: true,
+        slug,
+        publishedAt: Date.now(),
+        seo: (seoTitle || seoDesc) ? { title: seoTitle || undefined, description: seoDesc || undefined } : null,
+      };
+      updatePage(page.id, updates);
+      await persistPageState(updates);
+      navigator.clipboard.writeText(publicUrl).catch(() => {});
+      toast.success('Page published!', { description: 'Public link copied to clipboard.' });
+    } catch (error) {
+      toast.error('Failed to publish page');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     if (slugError) {
       toast.error(slugError);
       return;
     }
-    updatePage(page.id, {
-      slug,
-      seo: (seoTitle || seoDesc) ? { title: seoTitle || undefined, description: seoDesc || undefined } : null,
-    });
-    toast.success('Settings saved');
+    try {
+      const updates = {
+        slug,
+        seo: (seoTitle || seoDesc) ? { title: seoTitle || undefined, description: seoDesc || undefined } : null,
+      };
+      updatePage(page.id, updates);
+      await persistPageState(updates);
+      toast.success('Settings saved');
+    } catch (error) {
+      toast.error('Failed to save settings');
+    }
   };
 
   const handleCopyUrl = () => {
