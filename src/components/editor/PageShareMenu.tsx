@@ -71,15 +71,16 @@ export function PageShareMenu({ page, pageBlocks }: { page: Page; pageBlocks: Bl
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-      const inTrigger = menuRef.current?.contains(target);
-      if (!inTrigger) {
+      const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+      const inMenu = !!menuRef.current && (menuRef.current.contains(target) || path.includes(menuRef.current));
+      if (!inMenu) {
         setIsOpen(false);
       }
     };
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('click', handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, [isOpen]);
 
   const handleInvite = () => {
