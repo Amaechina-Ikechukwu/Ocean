@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useEditorStore } from './store';
 import { db, auth } from './firebase';
-import { collection, doc, setDoc, getDocs, updateDoc, query, where } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, updateDoc, query, where, getDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from './firestore-errors';
 import { createOceanApiClient, API_ORIGIN } from './api';
 
@@ -31,18 +31,35 @@ export function useFirebaseSync() {
             
             const workspace = rest.workspaces.find(w => w.id === wsId);
             if (workspace) {
-              if (workspace.ownerId !== uid) {
-                useEditorStore.setState(state => ({
-                  workspaces: state.workspaces.map(w => w.id === wsId ? { ...w, ownerId: uid } : w)
-                }));
+              // Read the remote workspace doc to determine whether this is a create or update.
+              const remoteSnap = await getDoc(wsRef).catch(() => null);
+              const remoteExists = remoteSnap && remoteSnap.exists();
+
+              if (!remoteExists) {
+                // Creating on server: include ownerId (must match request.auth.uid per rules)
+                await setDoc(wsRef, {
+                  name: workspace.name,
+                  ownerId: uid,
+                  createdAt: workspace.createdAt,
+                  icon: workspace.icon || '',
+                  type: workspace.type || 'blog'
+                }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, wsPath));
+
+                // Ensure local store reflects the owner we set server-side
+                if (workspace.ownerId !== uid) {
+                  useEditorStore.setState(state => ({
+                    workspaces: state.workspaces.map(w => w.id === wsId ? { ...w, ownerId: uid } : w)
+                  }));
+                }
+              } else {
+                // Remote exists: do not attempt to overwrite ownerId (rules forbid changing it)
+                await setDoc(wsRef, {
+                  name: workspace.name,
+                  createdAt: workspace.createdAt,
+                  icon: workspace.icon || '',
+                  type: workspace.type || 'blog'
+                }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, wsPath));
               }
-              await setDoc(wsRef, {
-                name: workspace.name,
-                ownerId: uid,
-                createdAt: workspace.createdAt,
-                icon: workspace.icon || '',
-                type: workspace.type || 'blog'
-              }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, wsPath));
             }
 
             // Also update page ownerId if needed
