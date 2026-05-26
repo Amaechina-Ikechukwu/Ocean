@@ -383,46 +383,25 @@ export const useEditorStore = create<EditorState>()(
         const ownerId = auth.currentUser?.uid;
         if (!ownerId) return;
 
-        const defaultWorkspace: Workspace = {
-          id: uuidv4(),
-          name: 'Personal Workspace',
-          icon: '🌊',
-          ownerId,
-          createdAt: Date.now(),
-          type: 'blog',
-        };
+        // Use the existing createWorkspace helper so the new workspace/page/block
+        // are created in state and marked dirty for the sync layer to persist
+        // them to Firestore (ensures server-side ownerId consistency and rules).
+        const ws = get().createWorkspace('Personal Workspace', '🌊');
 
-        const newPageId = uuidv4();
-        const demoPage: Page = {
-          id: newPageId,
-          workspaceId: defaultWorkspace.id,
-          parentId: null,
-          title: 'Welcome to Ocean',
-          icon: '🌊',
-          coverImage: null,
-          order: generateKeyBetween(null, null),
-          timestamp: Date.now(),
-          deleted: false,
-          ownerId,
-        };
-
-        const demoBlock: Block = {
-          id: uuidv4(),
-          type: 'text',
-          order: generateKeyBetween(null, null),
-          parentId: null,
-          content: 'Dive deep into your thoughts. Type / for commands.',
-          attrs: {},
-          ownerId,
-        };
-
-        set({
-          workspaces: [defaultWorkspace],
-          activeWorkspaceId: defaultWorkspace.id,
-          pages: { [newPageId]: demoPage },
-          activePageId: newPageId,
-          blocks: { [newPageId]: [demoBlock] }
-        });
+        // Tweak the default page/block content to match the demo content.
+        const activePageId = get().activePageId;
+        if (activePageId) {
+          try {
+            get().updatePage(activePageId, { title: 'Welcome to Ocean' });
+            const pageBlocks = get().blocks[activePageId] || [];
+            if (pageBlocks.length > 0) {
+              get().updateBlock(activePageId, { ...pageBlocks[0], content: 'Dive deep into your thoughts. Type / for commands.' });
+            }
+          } catch (e) {
+            // If anything fails here, it's non-fatal; the workspace still exists locally
+            console.warn('initDemoData: failed to adjust demo content', e);
+          }
+        }
       }
     }),
     {
