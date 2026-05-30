@@ -15,7 +15,7 @@ import { SlashCommandMenu } from './SlashCommandMenu';
 export const SortableBlock: React.FC<{ 
   block: Block; 
   onUpdate: (b: Block) => void; 
-  insertBlock: (afterId: string, type?: BlockType) => void; 
+  insertBlock: (afterId: string, type?: BlockType) => string; 
   onDropImage?: (file: File, afterId: string) => void;
   deleteBlock: (blockId: string) => void;
 }> = ({ block, onUpdate, insertBlock, onDropImage, deleteBlock }) => {
@@ -109,7 +109,7 @@ export const BlockList = ({
   blocks: Block[];
   onReorder: (activeId: string, overId: string) => void;
   onUpdateBlock: (block: Block) => void;
-  onInsertBlock: (afterId: string, type?: BlockType) => void;
+  onInsertBlock: (afterId: string, type?: BlockType) => string;
   onDropImage?: (file: File, afterId: string) => void;
   onDeleteBlock: (blockId: string) => void;
 }) => {

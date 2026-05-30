@@ -64,7 +64,7 @@ export type Page = {
 };
 
 export type BlockType =
-  | "text" | "heading1" | "heading2" | "heading3"
+  | "text" | "heading1" | "heading2" | "heading3" | "heading4" | "heading5" | "heading6"
   | "bulletList" | "numberedList" | "todo" | "toggle"
   | "quote" | "callout" | "code" | "divider"
   | "image" | "audio" | "video" | "file"

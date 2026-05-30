@@ -32,6 +32,16 @@ export function Editor() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const theme = useThemeStore(s => s.theme);
 
+  const focusBlockTextarea = (blockId: string) => {
+    const retries = [0, 50, 100, 200];
+    retries.forEach(delay => {
+      setTimeout(() => {
+        const textarea = document.querySelector<HTMLTextAreaElement>(`textarea[data-block-id="${blockId}"]`);
+        textarea?.focus();
+      }, delay);
+    });
+  };
+
   const { refs, floatingStyles } = useFloating({
     open: showEmojiPicker,
     onOpenChange: setShowEmojiPicker,
@@ -88,21 +98,18 @@ export function Editor() {
       e.preventDefault();
       // focus first block or create one
       if (pageBlocks.length === 0) {
-        insertBlock(page.id, { id: uuidv4(), type: 'text', content: '', parentId: null, attrs: {}, order: '', ownerId: page.ownerId }, null);
+        const newBlockId = handleInsertBlock(null as any);
+        focusBlockTextarea(newBlockId);
+      } else {
+        focusBlockTextarea(pageBlocks[0].id);
       }
-      // Actually we'd focus it, but for simplicity we rely on React rendering
-      setTimeout(() => {
-        const textareas = document.querySelectorAll('textarea');
-        if (textareas[0]) {
-          (textareas[0] as HTMLTextAreaElement).focus();
-        }
-      }, 50);
     }
   };
 
   const handleInsertBlock = (afterId: string, type?: BlockType) => {
     const newBlock: Block = { id: uuidv4(), type: type || 'text', content: '', parentId: null, attrs: {}, order: '', ownerId: page.ownerId };
     insertBlock(page.id, newBlock, afterId);
+    return newBlock.id;
   };
 
   const handleReorder = (activeId: string, overId: string) => {
@@ -240,15 +247,15 @@ export function Editor() {
           </svg>
         </div>
 
-        <div className="w-full mb-8 group/page-icon">
+        <div className="w-full mb-8">
           <div className="flex items-center gap-4 mb-4 relative w-fit">
             <div 
               ref={refs.setReference}
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="w-16 h-16 rounded-2xl bg-ocean-blue/5 border border-ocean-border flex items-center justify-center text-4xl group-hover/page-icon:scale-105 transition-transform cursor-pointer hover:bg-ocean-blue/10"
+              className="group/emoji w-16 h-16 rounded-2xl bg-ocean-blue/5 border border-ocean-border flex items-center justify-center text-4xl hover:scale-105 transition-transform cursor-pointer hover:bg-ocean-blue/10"
             >
               {page.icon || (
-                <div className="text-ocean-faint group-hover/page-icon:text-ocean-blue transition-colors flex items-center justify-center">
+                <div className="text-ocean-faint group-hover/emoji:text-ocean-blue transition-all duration-200 flex items-center justify-center opacity-0 group-hover/emoji:opacity-100">
                    <Smile className="w-8 h-8 opacity-50" />
                 </div>
               )}
@@ -284,6 +291,44 @@ export function Editor() {
             value={title}
             onChange={handleTitleChange}
             onKeyDown={handleTitleKeyDown}
+            onPaste={(e) => {
+              const text = e.clipboardData.getData('text/plain');
+              const lines = text.split(/\r?\n/);
+              const nonEmpty = lines.find(l => l.trim());
+              if (!nonEmpty) return;
+              const hMatch = nonEmpty.match(/^(#{1,6})\s+(.+)/);
+              if (!hMatch) return;
+              e.preventDefault();
+              const strip = (s: string) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/`(.+?)`/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+              const pageTitle = strip(hMatch[2]).trim();
+              setTitle(pageTitle);
+              updatePage(page.id, { title: pageTitle });
+              const restLines = lines.slice(lines.indexOf(nonEmpty) + 1);
+              if (restLines.length === 0) return;
+              const store = useEditorStore.getState();
+              let lastId: string | null = null;
+              let textBuffer: string[] = [];
+              const insertOne = (type: BlockType, content: string) => {
+                const id = uuidv4();
+                store.insertBlock(page.id, { id, type, content, parentId: null, attrs: {}, order: '', ownerId: page.ownerId }, lastId);
+                lastId = id;
+              };
+              const flushText = () => {
+                if (textBuffer.length) { insertOne('text', strip(textBuffer.join('\n')).trim()); textBuffer = []; }
+              };
+              for (const line of restLines) {
+                const t = line.trim();
+                if (!t) { flushText(); continue; }
+                const heading = t.match(/^(#{1,6})\s+(.+)/);
+                if (heading) { flushText(); insertOne(`heading${heading[1].length}` as BlockType, strip(heading[2]).trim()); continue; }
+                if (t.startsWith('> ')) { flushText(); insertOne('quote', strip(t.slice(2)).trim()); continue; }
+                if (t.match(/^[-*]\s/)) { flushText(); insertOne('bulletList', strip(t.replace(/^[-*]\s/, '')).trim()); continue; }
+                if (t.match(/^\d+\.\s/)) { flushText(); insertOne('numberedList', strip(t.replace(/^\d+\.\s/, '')).trim()); continue; }
+                textBuffer.push(line);
+              }
+              flushText();
+              if (lastId) focusBlockTextarea(lastId);
+            }}
             placeholder="Untitled"
             autoFocus={!title}
             className="w-full text-6xl font-serif text-ocean-text bg-transparent border-none outline-none placeholder:text-ocean-faint focus:ring-0 leading-tight resize-none"
@@ -294,7 +339,10 @@ export function Editor() {
           {pageBlocks.length === 0 ? (
             <div 
               className="text-ocean-faint text-lg cursor-text py-2 font-sans"
-              onClick={() => handleInsertBlock(null as any)}
+              onClick={() => {
+                const blockId = handleInsertBlock(null as any);
+                focusBlockTextarea(blockId);
+              }}
             >
               Start typing deeply, or type '/' for AI commands...
             </div>

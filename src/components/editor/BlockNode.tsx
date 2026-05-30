@@ -21,7 +21,7 @@ export const BlockNode = ({
 }: { 
   block: Block, 
   onUpdate: (b: Block) => void,
-  insertBlock: (afterId: string) => void,
+  insertBlock: (afterId: string) => string,
   deleteBlock: (blockId: string) => void
 }) => {
   const router = useRouter();
@@ -33,6 +33,30 @@ export const BlockNode = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [openImagePopover, setOpenImagePopover] = useState<'ratio' | 'position' | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
+  const [showTextHint, setShowTextHint] = useState(true);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!block.content) {
+      setShowTextHint(true);
+      if (hintTimer.current) clearTimeout(hintTimer.current);
+      hintTimer.current = setTimeout(() => setShowTextHint(false), 2000);
+    } else {
+      setShowTextHint(false);
+      if (hintTimer.current) clearTimeout(hintTimer.current);
+    }
+    return () => { if (hintTimer.current) clearTimeout(hintTimer.current); };
+  }, [block.content]);
+
+  const focusBlockTextarea = (blockId: string) => {
+    const retries = [0, 50, 100, 200];
+    retries.forEach(delay => {
+      setTimeout(() => {
+        const textarea = document.querySelector<HTMLTextAreaElement>(`textarea[data-block-id="${blockId}"]`);
+        textarea?.focus();
+      }, delay);
+    });
+  };
 
   const { refs: slashRefs, floatingStyles: slashStyles } = useFloating({
     open: slashState?.isOpen,
@@ -92,7 +116,25 @@ export const BlockNode = ({
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      insertBlock(block.id);
+      const newBlockId = insertBlock(block.id);
+      focusBlockTextarea(newBlockId);
+    }
+
+    if (e.key === 'Backspace' && block.content === '') {
+      e.preventDefault();
+      const state = useEditorStore.getState();
+      const pageId = Object.keys(state.blocks).find(pid =>
+        state.blocks[pid].some(b => b.id === block.id)
+      );
+      if (pageId) {
+        const pageBlocks = state.blocks[pageId];
+        const currentIndex = pageBlocks.findIndex(b => b.id === block.id);
+        if (currentIndex > 0) {
+          const prevBlockId = pageBlocks[currentIndex - 1].id;
+          deleteBlock(block.id);
+          focusBlockTextarea(prevBlockId);
+        }
+      }
     }
   };
 
@@ -114,6 +156,16 @@ export const BlockNode = ({
     }, 50);
   };
 
+  const stripInlineMarkdown = (s: string) =>
+    s
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/_(.+?)_/g, '$1')
+      .replace(/~~(.+?)~~/g, '$1')
+      .replace(/`(.+?)`/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const text = e.clipboardData.getData('text/plain');
     if (text.includes('\n') || text.match(/^(#|-|\*|\d+\.|>|\[\]|\[v\]|\[x\])\s/m)) {
@@ -126,9 +178,11 @@ export const BlockNode = ({
       let codeContent: string[] = [];
       let currentTextContent: string[] = [];
 
+      const cleanContent = (s: string) => stripInlineMarkdown(s.trim());
+
       const flushText = () => {
          if (currentTextContent.length > 0) {
-            parsedBlocks.push({ type: 'text', content: currentTextContent.join('\n') });
+            parsedBlocks.push({ type: 'text', content: cleanContent(currentTextContent.join('\n')) });
             currentTextContent = [];
          }
       };
@@ -164,15 +218,20 @@ export const BlockNode = ({
         let attrs: any = {};
         let matched = true;
         
-        if (line.trim() === '---') { type = 'divider'; content = ''; }
-        else if (line.startsWith('# ')) { type = 'heading1'; content = line.slice(2); }
-        else if (line.startsWith('## ')) { type = 'heading2'; content = line.slice(3); }
-        else if (line.startsWith('### ')) { type = 'heading3'; content = line.slice(4); }
-        else if (line.match(/^[-*]\s/)) { type = 'bulletList'; content = line.replace(/^[-*]\s/, ''); }
-        else if (line.match(/^\d+\.\s/)) { type = 'numberedList'; content = line.replace(/^\d+\.\s/, ''); }
-        else if (line.startsWith('> ')) { type = 'quote'; content = line.slice(2); }
-        else if (line.startsWith('[] ')) { type = 'todo'; content = line.slice(3); attrs = { checked: false }; }
-        else if (line.startsWith('[x] ') || line.startsWith('[v] ')) { type = 'todo'; content = line.slice(4); attrs = { checked: true }; }
+        if (line.trim() === '---' || line.trim() === '***' || line.trim() === '___') { type = 'divider'; content = ''; }
+        else if (line.startsWith('# ')) { type = 'heading1'; content = cleanContent(line.slice(2)); }
+        else if (line.startsWith('## ')) { type = 'heading2'; content = cleanContent(line.slice(3)); }
+        else if (line.startsWith('### ')) { type = 'heading3'; content = cleanContent(line.slice(4)); }
+        else if (line.startsWith('#### ')) { type = 'heading4'; content = cleanContent(line.slice(5)); }
+        else if (line.startsWith('##### ')) { type = 'heading5'; content = cleanContent(line.slice(6)); }
+        else if (line.startsWith('###### ')) { type = 'heading6'; content = cleanContent(line.slice(7)); }
+        else if (line.match(/^[-*]\s/)) { type = 'bulletList'; content = cleanContent(line.replace(/^[-*]\s/, '')); }
+        else if (line.match(/^\d+\.\s/)) { type = 'numberedList'; content = cleanContent(line.replace(/^\d+\.\s/, '')); }
+        else if (line.startsWith('> ')) { type = 'quote'; content = cleanContent(line.slice(2)); }
+        else if (line.match(/^[-*]\s\[\s\]\s/)) { type = 'todo'; content = cleanContent(line.replace(/^[-*]\s\[\s\]\s/, '')); attrs = { checked: false }; }
+        else if (line.match(/^[-*]\s\[[xXvV]\]\s/)) { type = 'todo'; content = cleanContent(line.replace(/^[-*]\s\[[xXvV]\]\s/, '')); attrs = { checked: true }; }
+        else if (line.match(/^\[\s\]\s/)) { type = 'todo'; content = cleanContent(line.replace(/^\[\s\]\s/, '')); attrs = { checked: false }; }
+        else if (line.match(/^\[[xXvV]\]\s/)) { type = 'todo'; content = cleanContent(line.replace(/^\[[xXvV]\]\s/, '')); attrs = { checked: true }; }
         else {
            matched = false;
         }
@@ -220,6 +279,7 @@ export const BlockNode = ({
 
   const commonProps = {
     ref: textareaRef,
+    'data-block-id': block.id,
     value: block.content,
     onChange: handleChange,
     onKeyDown: handleKeyDown,
@@ -238,7 +298,7 @@ export const BlockNode = ({
           <TextareaAutosize
             {...commonProps}
             placeholder="Heading 1"
-            className="w-full text-4xl font-serif text-ocean-text bg-transparent border-none outline-none resize-none placeholder:text-ocean-faint focus:ring-0 mt-8 mb-4 leading-tight"
+            className="w-full text-4xl font-serif text-ocean-text bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0 mt-8 mb-4 leading-tight"
           />
         );
       case 'heading2':
@@ -246,7 +306,7 @@ export const BlockNode = ({
           <TextareaAutosize
             {...commonProps}
             placeholder="Heading 2"
-            className="w-full text-3xl font-serif text-ocean-text bg-transparent border-none outline-none resize-none placeholder:text-ocean-faint focus:ring-0 mt-6 mb-2 leading-snug"
+            className="w-full text-3xl font-serif text-ocean-text bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0 mt-6 mb-2 leading-snug"
           />
         );
       case 'heading3':
@@ -254,7 +314,31 @@ export const BlockNode = ({
           <TextareaAutosize
             {...commonProps}
             placeholder="Heading 3"
-            className="w-full text-xl font-medium text-ocean-text bg-transparent border-none outline-none resize-none placeholder:text-ocean-faint focus:ring-0 mt-4 mb-2"
+            className="w-full text-xl font-medium text-ocean-text bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0 mt-4 mb-2"
+          />
+        );
+      case 'heading4':
+        return (
+          <TextareaAutosize
+            {...commonProps}
+            placeholder="Heading 4"
+            className="w-full text-lg font-medium text-ocean-text bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0 mt-3 mb-1"
+          />
+        );
+      case 'heading5':
+        return (
+          <TextareaAutosize
+            {...commonProps}
+            placeholder="Heading 5"
+            className="w-full text-base font-medium text-ocean-text bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0 mt-2 mb-1"
+          />
+        );
+      case 'heading6':
+        return (
+          <TextareaAutosize
+            {...commonProps}
+            placeholder="Heading 6"
+            className="w-full text-sm font-medium text-ocean-text bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0 mt-2 mb-1"
           />
         );
       case 'quote':
@@ -264,7 +348,7 @@ export const BlockNode = ({
             <TextareaAutosize
               {...commonProps}
               placeholder="Quote..."
-              className="w-full p-4 italic text-ocean-text/90 bg-transparent border-none outline-none resize-none placeholder:text-ocean-faint focus:ring-0"
+              className="w-full p-4 italic text-ocean-text/90 bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0"
             />
           </div>
         );
@@ -614,8 +698,8 @@ export const BlockNode = ({
             <TextareaAutosize
               {...commonProps}
               placeholder="Add a caption..."
-              className="w-full mt-3 text-sm text-left text-ocean-muted bg-transparent border-none outline-none resize-none placeholder:text-ocean-faint focus:ring-0 italic"
-              value={block.attrs?.caption || ''}
+               className="w-full mt-3 text-sm text-left text-ocean-muted bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0 italic"
+               value={block.attrs?.caption || ''}
               onChange={(e) => onUpdate({ ...block, attrs: { ...block.attrs, caption: e.target.value } })}
             />
           </div>
@@ -704,7 +788,7 @@ export const BlockNode = ({
                 {...commonProps}
                 placeholder={block.type === 'todo' ? "To-do item..." : "List item..."}
                 className={cn(
-                  "flex-1 text-lg leading-relaxed text-ocean-text bg-transparent border-none outline-none resize-none placeholder:text-ocean-faint focus:ring-0 transition-opacity duration-300",
+                  "flex-1 text-lg leading-relaxed text-ocean-text bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0 transition-opacity duration-300",
                   isChecked && "opacity-50 line-through decoration-ocean-muted"
                 )}
              />
@@ -715,9 +799,9 @@ export const BlockNode = ({
         return (
           <TextareaAutosize
             {...commonProps}
-            placeholder="Type '/' for commands"
-            className="w-full text-lg leading-relaxed text-ocean-text bg-transparent border-none outline-none resize-none placeholder:text-ocean-faint focus:ring-0 min-h-[30px]"
-          />
+              placeholder={showTextHint ? "Type '/' for commands" : ''}
+              className="w-full text-lg leading-relaxed text-ocean-text bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-ocean-faint focus:ring-0 min-h-[30px]"
+            />
         );
     }
   };
